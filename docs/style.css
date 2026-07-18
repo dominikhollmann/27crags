@@ -121,6 +121,11 @@ html, body {
 .list-item-name {
   font-weight: 600;
   font-size: 14px;
+  color: #1a5fb4;
+}
+
+.list-item:hover .list-item-name {
+  text-decoration: underline;
 }
 
 .list-item-location {
