@@ -165,7 +165,16 @@ async function main() {
     zoom: 3.5,
   });
 
+  // Mapbox emits an "error" event per failed request -- e.g. individual
+  // tiles occasionally 403 (missing bathymetry coverage at some
+  // coordinates) even though the map works fine overall. Only surface the
+  // blocking banner if the map never managed to load at all (bad/misconfigured
+  // token); once "load" has fired once, treat further errors as non-fatal
+  // noise and just log them.
+  let mapLoaded = false;
   map.on("error", (e) => {
+    console.error("Mapbox error:", e.error);
+    if (mapLoaded) return;
     showError(
       "Mapbox-Fehler: " + (e.error && e.error.message ? e.error.message : String(e.error)) +
       " -- prüfe, ob dein Token gültig und für diese Domain freigegeben ist."
@@ -177,6 +186,7 @@ async function main() {
 
   // --- Map layers ---
   map.on("load", () => {
+    mapLoaded = true;
     const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, observedMin, observedMax);
 
     map.addSource("crags", {
