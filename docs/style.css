@@ -205,10 +205,12 @@ html, body {
 
 .list-item-share {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
-  font-size: 17px;
-  line-height: 1;
+  color: #555;
   padding: 6px;
   cursor: pointer;
   border-radius: 6px;
@@ -260,13 +262,14 @@ html, body {
 
 #share-view-btn {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   border: none;
   background: #eee;
   color: #333;
-  font-size: 16px;
-  line-height: 1;
   border-radius: 8px;
   cursor: pointer;
 }
