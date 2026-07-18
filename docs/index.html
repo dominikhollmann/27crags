@@ -30,9 +30,12 @@
   <div id="panel-body">
     <div id="stats">lade Daten&hellip;</div>
 
-    <div id="view-toggle" role="tablist">
-      <button type="button" class="view-toggle-btn active" data-view="map">Karte</button>
-      <button type="button" class="view-toggle-btn" data-view="list">Liste</button>
+    <div id="toolbar-row">
+      <div id="view-toggle" role="tablist">
+        <button type="button" class="view-toggle-btn active" data-view="map">Karte</button>
+        <button type="button" class="view-toggle-btn" data-view="list">Liste</button>
+      </div>
+      <button type="button" id="share-view-btn" aria-label="Ansicht teilen">&#128279;</button>
     </div>
 
     <label class="panel-label">Schwierigkeitsgrad (Font)</label>
@@ -41,8 +44,6 @@
       <span id="grade-max-label"></span>
     </div>
     <div id="grade-slider"></div>
-
-    <button type="button" id="share-view-btn">&#128279; Ansicht teilen</button>
   </div>
 </div>
 

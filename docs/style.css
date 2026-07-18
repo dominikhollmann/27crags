@@ -106,13 +106,20 @@ html, body {
   line-height: 1.4;
 }
 
+#toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 #view-toggle {
   display: flex;
+  flex: 1;
   gap: 4px;
   background: #eee;
   border-radius: 8px;
   padding: 3px;
-  margin-bottom: 16px;
 }
 
 .view-toggle-btn {
@@ -252,21 +259,20 @@ html, body {
 }
 
 #share-view-btn {
-  display: block;
-  width: 100%;
-  margin-top: 16px;
-  border: 1px solid #d5dfe8;
-  background: #f4f8fc;
-  color: #1a5fb4;
-  font-weight: 600;
-  font-size: 13px;
-  padding: 9px 0;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: #eee;
+  color: #333;
+  font-size: 16px;
+  line-height: 1;
   border-radius: 8px;
   cursor: pointer;
 }
 
 #share-view-btn:hover {
-  background: #e8f0fc;
+  background: #e0e9f5;
 }
 
 /* noUiSlider theming */
