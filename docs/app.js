@@ -24,6 +24,26 @@ const MAP_STYLES = [
 ];
 const DEFAULT_STYLE_ID = "dark-v11";
 const STYLE_STORAGE_KEY = "mapStyleId";
+const GRADE_RANGE_STORAGE_KEY = "gradeRange";
+
+// localStorage can throw in locked-down/private-browsing contexts -- treat
+// persistence as a nice-to-have and fall back to defaults if unavailable.
+function loadLocalStorageJSON(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveLocalStorageJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    // ignore
+  }
+}
 
 function showError(message) {
   const el = document.getElementById("loading-error");
@@ -224,13 +244,22 @@ async function main() {
   const [observedMin, observedMax] = computeObservedRange(crags);
   const statsEl = document.getElementById("stats");
 
+  // Restore a previously saved grade filter if it's still within the
+  // observed range (data may have changed since it was saved).
+  const savedRange = loadLocalStorageJSON(GRADE_RANGE_STORAGE_KEY);
+  const [startMin, startMax] =
+    Array.isArray(savedRange) && savedRange.length === 2 &&
+    savedRange[0] >= observedMin && savedRange[1] <= observedMax && savedRange[0] <= savedRange[1]
+      ? savedRange
+      : [observedMin, observedMax];
+
   // --- Slider setup (independent of Mapbox so it still works if the map fails) ---
   const slider = document.getElementById("grade-slider");
   const minLabelEl = document.getElementById("grade-min-label");
   const maxLabelEl = document.getElementById("grade-max-label");
 
   noUiSlider.create(slider, {
-    start: [observedMin, observedMax],
+    start: [startMin, startMax],
     connect: true,
     step: 1,
     range: { min: observedMin, max: observedMax },
@@ -241,7 +270,7 @@ async function main() {
     minLabelEl.textContent = FONT_SEQUENCE[minIdx];
     maxLabelEl.textContent = FONT_SEQUENCE[maxIdx];
   }
-  setRangeLabels(observedMin, observedMax);
+  setRangeLabels(startMin, startMax);
 
   function updateStats(matchingCragCount, totalBoulders) {
     statsEl.textContent =
@@ -253,8 +282,8 @@ async function main() {
   // guards against it being null so the slider/stats stay usable either way.
   let map = null;
   let currentView = "map";
-  let currentMinIdx = observedMin;
-  let currentMaxIdx = observedMax;
+  let currentMinIdx = startMin;
+  let currentMaxIdx = startMax;
 
   function refreshList() {
     if (currentView !== "list") return;
@@ -278,6 +307,7 @@ async function main() {
     const minIdx = Math.round(values[0]);
     const maxIdx = Math.round(values[1]);
     setRangeLabels(minIdx, maxIdx);
+    saveLocalStorageJSON(GRADE_RANGE_STORAGE_KEY, [minIdx, maxIdx]);
     if (!map || map.isStyleLoaded()) refreshData(minIdx, maxIdx);
   });
 
@@ -300,7 +330,7 @@ async function main() {
       "MAPBOX_TOKEN durch deinen eigenen Mapbox Public Access Token ersetzen " +
       "(siehe README.md)."
     );
-    refreshData(observedMin, observedMax);
+    refreshData(startMin, startMax);
     return;
   }
 
