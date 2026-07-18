@@ -33,6 +33,71 @@ const SHARE_ICON_SVG =
   '<path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>' +
   "</svg>";
 
+// Release notes shown in a "what's new" popup. Each entry needs a unique,
+// increasing `version` -- append a new entry (higher version) whenever
+// there's something worth telling returning users about. Keep `changes`
+// aggregated/user-facing (no commit-level or purely cosmetic detail).
+const RELEASE_NOTES = [
+  {
+    version: 1,
+    date: "2026-07-18",
+    changes: [
+      "Weltweite Daten: jetzt alle Kontinente (691 Regionen, 71 Länder) statt nur Europa.",
+      "Listenansicht: Klick auf eine Kachel springt zur Karte und zoomt aufs Gebiet; Klick auf den Namen öffnet weiterhin die thetopo.com-Seite.",
+      "Teilen-Funktion: einzelne Gebiete und die aktuelle Kartenansicht (inkl. Grad-Filter) lassen sich per Link teilen, z.B. über WhatsApp.",
+    ],
+  },
+];
+const RELEASE_SEEN_STORAGE_KEY = "seenReleaseVersion";
+
+function showReleaseNotesIfNeeded() {
+  let seenVersion = 0;
+  try {
+    seenVersion = parseInt(localStorage.getItem(RELEASE_SEEN_STORAGE_KEY), 10) || 0;
+  } catch (err) {
+    // localStorage unavailable -- just show notes every time in that rare case.
+  }
+
+  const unseen = RELEASE_NOTES.filter((r) => r.version > seenVersion).sort((a, b) => a.version - b.version);
+  if (unseen.length === 0) return;
+
+  const body = document.getElementById("release-modal-body");
+  body.innerHTML = "";
+  for (const release of unseen) {
+    const entry = document.createElement("div");
+    entry.className = "release-entry";
+    const dateEl = document.createElement("div");
+    dateEl.className = "release-entry-date";
+    dateEl.textContent = release.date;
+    const list = document.createElement("ul");
+    for (const change of release.changes) {
+      const li = document.createElement("li");
+      li.textContent = change;
+      list.appendChild(li);
+    }
+    entry.appendChild(dateEl);
+    entry.appendChild(list);
+    body.appendChild(entry);
+  }
+
+  const modal = document.getElementById("release-modal");
+  modal.classList.remove("hidden");
+
+  const latestVersion = unseen[unseen.length - 1].version;
+  const markSeen = () => {
+    modal.classList.add("hidden");
+    try {
+      localStorage.setItem(RELEASE_SEEN_STORAGE_KEY, String(latestVersion));
+    } catch (err) {
+      // ignore -- worst case the popup shows again next time
+    }
+  };
+  document.getElementById("release-modal-close").addEventListener("click", markSeen, { once: true });
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) markSeen();
+  }, { once: true });
+}
+
 // localStorage can throw in locked-down/private-browsing contexts -- treat
 // persistence as a nice-to-have and fall back to defaults if unavailable.
 function loadLocalStorageJSON(key) {
@@ -359,6 +424,8 @@ async function main() {
   document.getElementById("panel-toggle").addEventListener("click", () => {
     panel.classList.toggle("collapsed");
   });
+
+  showReleaseNotesIfNeeded();
 
   let crags;
   try {

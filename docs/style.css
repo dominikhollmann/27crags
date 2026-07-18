@@ -308,6 +308,75 @@ html, body {
   display: none !important;
 }
 
+#release-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+#release-modal-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 22px 24px;
+  max-width: 440px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+#release-modal-card h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.release-entry {
+  margin-bottom: 14px;
+}
+
+.release-entry-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.release-entry ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.release-entry li {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+#release-modal-close {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: none;
+  background: #1a5fb4;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#release-modal-close:hover {
+  background: #164e96;
+}
+
 /* Mobile layout: bottom sheet, collapsible */
 @media (max-width: 700px) {
   #panel {
