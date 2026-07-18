@@ -190,6 +190,17 @@ async function main() {
       },
     });
 
+    // Same radius scale for clusters (by "sum") and individual crags (by
+    // "count") so marker size is directly comparable across both -- a lone
+    // crag with 500 boulders should look as big as a cluster summing to 500.
+    const radiusSteps = (property) => [
+      "step", ["get", property],
+      16, 100,
+      20, 500,
+      25, 2000,
+      32,
+    ];
+
     map.addLayer({
       id: "clusters",
       type: "circle",
@@ -203,13 +214,7 @@ async function main() {
           "#1a5fb4", 2000,
           "#0d3a73",
         ],
-        "circle-radius": [
-          "step", ["get", "sum"],
-          16, 100,
-          20, 500,
-          25, 2000,
-          32,
-        ],
+        "circle-radius": radiusSteps("sum"),
         "circle-stroke-width": 1,
         "circle-stroke-color": "#ffffff",
       },
@@ -235,7 +240,7 @@ async function main() {
       filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": "#e0692e",
-        "circle-radius": 12,
+        "circle-radius": radiusSteps("count"),
         "circle-stroke-width": 1,
         "circle-stroke-color": "#ffffff",
       },
