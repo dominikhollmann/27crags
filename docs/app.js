@@ -26,6 +26,94 @@ const DEFAULT_STYLE_ID = "dark-v11";
 const STYLE_STORAGE_KEY = "mapStyleId";
 const GRADE_RANGE_STORAGE_KEY = "gradeRange";
 
+// --- i18n: German/English based on the browser's language setting ---
+const LANG = ((navigator.language || (navigator.languages && navigator.languages[0]) || "en") + "")
+  .toLowerCase()
+  .startsWith("de") ? "de" : "en";
+const NUM_LOCALE = LANG === "de" ? "de-DE" : "en-US";
+
+const I18N = {
+  de: {
+    appTitle: "The Topo Bouldergebietsuche",
+    toggleFilterAria: "Filter ein-/ausklappen",
+    loading: "lade Daten…",
+    viewMap: "Karte",
+    viewList: "Liste",
+    shareViewAria: "Ansicht teilen",
+    gradeLabel: "Schwierigkeitsgrad (Font)",
+    releaseTitle: "Was ist neu",
+    releaseClose: "Schließen",
+    styleSwitcherAria: "Kartenstil wählen",
+    shareCragAria: "Gebiet teilen",
+    cragsJsonLoadFailed: (status) => `crags.json konnte nicht geladen werden (HTTP ${status})`,
+    errorCragsLoadFailed: (msg) => `Boulder-Daten konnten nicht geladen werden: ${msg}`,
+    errorNoToken:
+      "Kein Mapbox-Token gesetzt. Bitte in docs/app.js die Konstante MAPBOX_TOKEN durch deinen " +
+      "eigenen Mapbox Public Access Token ersetzen (siehe README.md).",
+    errorMapbox: (msg) => `Mapbox-Fehler: ${msg} -- prüfe, ob dein Token gültig und für diese Domain freigegeben ist.`,
+    statsLine: (count, total, boulders) =>
+      `${count.toLocaleString(NUM_LOCALE)} von ${total.toLocaleString(NUM_LOCALE)} Gebieten -- ` +
+      `${boulders.toLocaleString(NUM_LOCALE)} Boulder im gewählten Bereich`,
+    listEmpty: "Keine Gebiete im aktuellen Kartenausschnitt/Grad-Filter.",
+    listMore: (n) =>
+      `+${n.toLocaleString(NUM_LOCALE)} weitere Gebiete im sichtbaren Bereich -- weiter reinzoomen, um alle zu sehen.`,
+    clusterTooltip: (n) => `${n.toLocaleString(NUM_LOCALE)} Gebiete`,
+    shareCragText: (name, region, country) => `${name} (${region}, ${country}) auf The Topo Bouldergebietsuche`,
+    shareViewText: "Boulder-Gebiete auf The Topo Bouldergebietsuche",
+    linkCopied: (url) => `Link kopiert:\n${url}`,
+    linkPromptLabel: "Link zum Teilen:",
+  },
+  en: {
+    appTitle: "The Topo Boulder Area Finder",
+    toggleFilterAria: "Toggle filter",
+    loading: "loading data…",
+    viewMap: "Map",
+    viewList: "List",
+    shareViewAria: "Share view",
+    gradeLabel: "Difficulty grade (Font)",
+    releaseTitle: "What's new",
+    releaseClose: "Close",
+    styleSwitcherAria: "Choose map style",
+    shareCragAria: "Share area",
+    cragsJsonLoadFailed: (status) => `crags.json could not be loaded (HTTP ${status})`,
+    errorCragsLoadFailed: (msg) => `Failed to load boulder data: ${msg}`,
+    errorNoToken:
+      "No Mapbox token set. Please replace the MAPBOX_TOKEN constant in docs/app.js with your own " +
+      "Mapbox public access token (see README.md).",
+    errorMapbox: (msg) => `Mapbox error: ${msg} -- check whether your token is valid and allowed for this domain.`,
+    statsLine: (count, total, boulders) =>
+      `${count.toLocaleString(NUM_LOCALE)} of ${total.toLocaleString(NUM_LOCALE)} areas -- ` +
+      `${boulders.toLocaleString(NUM_LOCALE)} boulders in the selected range`,
+    listEmpty: "No areas in the current map view / grade filter.",
+    listMore: (n) =>
+      `+${n.toLocaleString(NUM_LOCALE)} more areas in view -- zoom in further to see them all.`,
+    clusterTooltip: (n) => `${n.toLocaleString(NUM_LOCALE)} areas`,
+    shareCragText: (name, region, country) => `${name} (${region}, ${country}) on The Topo Boulder Area Finder`,
+    shareViewText: "Boulder areas on The Topo Boulder Area Finder",
+    linkCopied: (url) => `Link copied:\n${url}`,
+    linkPromptLabel: "Link to share:",
+  },
+};
+
+function t(key, ...args) {
+  const entry = I18N[LANG][key];
+  return typeof entry === "function" ? entry(...args) : entry;
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = LANG;
+  document.title = t("appTitle");
+  document.getElementById("panel-title").textContent = t("appTitle");
+  document.getElementById("panel-toggle").setAttribute("aria-label", t("toggleFilterAria"));
+  document.getElementById("stats").textContent = t("loading");
+  document.querySelector('.view-toggle-btn[data-view="map"]').textContent = t("viewMap");
+  document.querySelector('.view-toggle-btn[data-view="list"]').textContent = t("viewList");
+  document.getElementById("share-view-btn").setAttribute("aria-label", t("shareViewAria"));
+  document.querySelector(".panel-label").textContent = t("gradeLabel");
+  document.querySelector("#release-modal-card h2").textContent = t("releaseTitle");
+  document.getElementById("release-modal-close").textContent = t("releaseClose");
+}
+
 // Standard "share" glyph (three connected nodes), reused for the per-crag
 // and the current-view share buttons.
 const SHARE_ICON_SVG =
@@ -36,16 +124,24 @@ const SHARE_ICON_SVG =
 // Release notes shown in a "what's new" popup. Each entry needs a unique,
 // increasing `version` -- append a new entry (higher version) whenever
 // there's something worth telling returning users about. Keep `changes`
-// aggregated/user-facing (no commit-level or purely cosmetic detail).
+// aggregated/user-facing (no commit-level or purely cosmetic detail), and
+// provide both languages.
 const RELEASE_NOTES = [
   {
     version: 1,
     date: "2026-07-18",
-    changes: [
-      "Weltweite Daten: jetzt alle Kontinente (691 Regionen, 71 Länder) statt nur Europa.",
-      "Listenansicht: Klick auf eine Kachel springt zur Karte und zoomt aufs Gebiet; Klick auf den Namen öffnet weiterhin die thetopo.com-Seite.",
-      "Teilen-Funktion: einzelne Gebiete und die aktuelle Kartenansicht (inkl. Grad-Filter) lassen sich per Link teilen, z.B. über WhatsApp.",
-    ],
+    changes: {
+      de: [
+        "Weltweite Daten: jetzt alle Kontinente (691 Regionen, 71 Länder) statt nur Europa.",
+        "Listenansicht: Klick auf eine Kachel springt zur Karte und zoomt aufs Gebiet; Klick auf den Namen öffnet weiterhin die thetopo.com-Seite.",
+        "Teilen-Funktion: einzelne Gebiete und die aktuelle Kartenansicht (inkl. Grad-Filter) lassen sich per Link teilen, z.B. über WhatsApp.",
+      ],
+      en: [
+        "Worldwide data: now covers all continents (691 regions, 71 countries) instead of just Europe.",
+        "List view: tapping a card jumps to the map and zooms to that area; tapping the name still opens the thetopo.com page.",
+        "Share feature: individual areas and the current map view (incl. grade filter) can be shared as a link, e.g. via WhatsApp.",
+      ],
+    },
   },
 ];
 const RELEASE_SEEN_STORAGE_KEY = "seenReleaseVersion";
@@ -70,7 +166,7 @@ function showReleaseNotesIfNeeded() {
     dateEl.className = "release-entry-date";
     dateEl.textContent = release.date;
     const list = document.createElement("ul");
-    for (const change of release.changes) {
+    for (const change of release.changes[LANG]) {
       const li = document.createElement("li");
       li.textContent = change;
       list.appendChild(li);
@@ -130,7 +226,7 @@ function gradeIndex(label) {
 async function loadCrags() {
   const res = await fetch("data/crags.json");
   if (!res.ok) {
-    throw new Error(`crags.json konnte nicht geladen werden (HTTP ${res.status})`);
+    throw new Error(t("cragsJsonLoadFailed", res.status));
   }
   return res.json();
 }
@@ -300,16 +396,16 @@ async function shareLink(shareData) {
   }
   try {
     await navigator.clipboard.writeText(shareData.url);
-    alert("Link kopiert:\n" + shareData.url);
+    alert(t("linkCopied", shareData.url));
   } catch (err) {
-    prompt("Link zum Teilen:", shareData.url);
+    prompt(t("linkPromptLabel"), shareData.url);
   }
 }
 
 function shareCrag(item) {
   return shareLink({
     title: item.name,
-    text: `${item.name} (${item.region}, ${item.country}) auf The Topo Bouldergebietsuche`,
+    text: t("shareCragText", item.name, item.region, item.country),
     url: buildShareUrl(item.slug),
   });
 }
@@ -331,11 +427,11 @@ function renderList(items, onSelectCrag) {
       `<a class="list-item-name" href="${item.url}" target="_blank" rel="noopener"></a>` +
       `<div class="list-item-location"></div>` +
       `</div>` +
-      `<button type="button" class="list-item-share" aria-label="Gebiet teilen">${SHARE_ICON_SVG}</button>` +
+      `<button type="button" class="list-item-share" aria-label="${t("shareCragAria")}">${SHARE_ICON_SVG}</button>` +
       `<div class="list-item-count"></div>`;
     card.querySelector(".list-item-name").textContent = item.name;
     card.querySelector(".list-item-location").textContent = `${item.region}, ${item.country}`;
-    card.querySelector(".list-item-count").textContent = item.count.toLocaleString("de-DE");
+    card.querySelector(".list-item-count").textContent = item.count.toLocaleString(NUM_LOCALE);
 
     card.querySelector(".list-item-name").addEventListener("click", (e) => e.stopPropagation());
     card.querySelector(".list-item-share").addEventListener("click", (e) => {
@@ -356,13 +452,12 @@ function renderList(items, onSelectCrag) {
   if (items.length === 0) {
     const note = document.createElement("div");
     note.className = "list-note";
-    note.textContent = "Keine Gebiete im aktuellen Kartenausschnitt/Grad-Filter.";
+    note.textContent = t("listEmpty");
     container.appendChild(note);
   } else if (items.length > LIST_MAX_ITEMS) {
     const note = document.createElement("div");
     note.className = "list-note";
-    note.textContent =
-      `+${(items.length - LIST_MAX_ITEMS).toLocaleString("de-DE")} weitere Gebiete im sichtbaren Bereich -- weiter reinzoomen, um alle zu sehen.`;
+    note.textContent = t("listMore", items.length - LIST_MAX_ITEMS);
     container.appendChild(note);
   }
 }
@@ -381,7 +476,7 @@ class StyleSwitcherControl {
 
     const button = document.createElement("button");
     button.type = "button";
-    button.title = "Kartenstil wählen";
+    button.title = t("styleSwitcherAria");
     button.className = "style-switcher-button";
     button.textContent = "▤"; // simple layers-like glyph, no external icon needed
 
@@ -419,6 +514,8 @@ class StyleSwitcherControl {
 }
 
 async function main() {
+  applyStaticTranslations();
+
   // Panel toggle (mobile bottom sheet) works regardless of map/token status.
   const panel = document.getElementById("panel");
   document.getElementById("panel-toggle").addEventListener("click", () => {
@@ -431,7 +528,7 @@ async function main() {
   try {
     crags = await loadCrags();
   } catch (err) {
-    showError("Boulder-Daten konnten nicht geladen werden: " + err.message);
+    showError(t("errorCragsLoadFailed", err.message));
     return;
   }
 
@@ -470,9 +567,7 @@ async function main() {
   setRangeLabels(startMin, startMax);
 
   function updateStats(matchingCragCount, totalBoulders) {
-    statsEl.textContent =
-      `${matchingCragCount.toLocaleString("de-DE")} von ${crags.length.toLocaleString("de-DE")} Gebieten -- ` +
-      `${totalBoulders.toLocaleString("de-DE")} Boulder im gewählten Bereich`;
+    statsEl.textContent = t("statsLine", matchingCragCount, crags.length, totalBoulders);
   }
 
   // `map` is assigned below only if a Mapbox token is present; refreshData
@@ -544,11 +639,7 @@ async function main() {
   }
 
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN.indexOf("PASTE_YOUR") === 0) {
-    showError(
-      "Kein Mapbox-Token gesetzt. Bitte in docs/app.js die Konstante " +
-      "MAPBOX_TOKEN durch deinen eigenen Mapbox Public Access Token ersetzen " +
-      "(siehe README.md)."
-    );
+    showError(t("errorNoToken"));
     refreshData(startMin, startMax);
     return;
   }
@@ -598,10 +689,7 @@ async function main() {
   map.on("error", (e) => {
     console.error("Mapbox error:", e.error);
     if (mapLoaded) return;
-    showError(
-      "Mapbox-Fehler: " + (e.error && e.error.message ? e.error.message : String(e.error)) +
-      " -- prüfe, ob dein Token gültig und für diese Domain freigegeben ist."
-    );
+    showError(t("errorMapbox", e.error && e.error.message ? e.error.message : String(e.error)));
   });
 
   map.addControl(new mapboxgl.NavigationControl(), "top-right");
@@ -619,8 +707,8 @@ async function main() {
     const center = map.getCenter();
     const shareUrl = buildViewShareUrl(center.lng, center.lat, map.getZoom(), currentMinIdx, currentMaxIdx);
     shareLink({
-      title: "The Topo Bouldergebietsuche",
-      text: "Boulder-Gebiete auf The Topo Bouldergebietsuche",
+      title: t("appTitle"),
+      text: t("shareViewText"),
       url: shareUrl,
     });
   });
@@ -753,7 +841,7 @@ async function main() {
     const n = feature.properties.point_count;
     hoverPopup
       .setLngLat(feature.geometry.coordinates)
-      .setText(`${n.toLocaleString("de-DE")} Gebiete`)
+      .setText(t("clusterTooltip", n))
       .addTo(map);
   });
 
