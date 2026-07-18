@@ -141,6 +141,21 @@ function computeBoundedStats(crags, minIdx, maxIdx, bounds) {
 
 const LIST_MAX_ITEMS = 300;
 
+// The thetopo.com crag slug (last URL path segment) doubles as a stable ID
+// for our own deep-links (#crag=<slug>), e.g. for the share button.
+function cragSlug(url) {
+  const parts = url.split("/").filter(Boolean);
+  return parts[parts.length - 1];
+}
+
+function buildShareUrl(slug) {
+  return `${location.origin}${location.pathname}#crag=${encodeURIComponent(slug)}`;
+}
+
+function findCragBySlug(crags, slug) {
+  return crags.find((c) => cragSlug(c.url) === slug);
+}
+
 // `bounds` is a mapboxgl.LngLatBounds, or null when there's no map (no
 // token) -- in that case every crag counts as "visible".
 function computeListItems(crags, minIdx, maxIdx, bounds) {
@@ -152,30 +167,81 @@ function computeListItems(crags, minIdx, maxIdx, bounds) {
     const count = countInRange(crag, minIdx, maxIdx);
     if (count <= 0) continue;
 
-    items.push({ name: crag.name, region: crag.region, country: crag.country, url: crag.url, count });
+    items.push({
+      name: crag.name,
+      region: crag.region,
+      country: crag.country,
+      url: crag.url,
+      lat: crag.lat,
+      lng: crag.lng,
+      slug: cragSlug(crag.url),
+      count,
+    });
   }
   items.sort((a, b) => b.count - a.count);
   return items;
 }
 
-function renderList(items) {
+async function shareCrag(item) {
+  const shareUrl = buildShareUrl(item.slug);
+  const shareData = {
+    title: item.name,
+    text: `${item.name} (${item.region}, ${item.country}) auf The Topo Bouldergebietsuche`,
+    url: shareUrl,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      // user cancelled the share sheet -- not an error
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    alert("Link kopiert:\n" + shareUrl);
+  } catch (err) {
+    prompt("Link zum Teilen:", shareUrl);
+  }
+}
+
+// `onSelectCrag(item)` is called when a card is clicked anywhere except the
+// name link or the share button -- switches to the map view, zoomed in.
+function renderList(items, onSelectCrag) {
   const container = document.getElementById("list-items");
   container.innerHTML = "";
 
   const shown = items.slice(0, LIST_MAX_ITEMS);
   for (const item of shown) {
-    const a = document.createElement("a");
-    a.className = "list-item";
-    a.href = item.url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.innerHTML =
-      `<div><div class="list-item-name"></div><div class="list-item-location"></div></div>` +
+    const card = document.createElement("div");
+    card.className = "list-item";
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.innerHTML =
+      `<div class="list-item-main">` +
+      `<a class="list-item-name" href="${item.url}" target="_blank" rel="noopener"></a>` +
+      `<div class="list-item-location"></div>` +
+      `</div>` +
+      `<button type="button" class="list-item-share" aria-label="Gebiet teilen">&#128279;</button>` +
       `<div class="list-item-count"></div>`;
-    a.querySelector(".list-item-name").textContent = item.name;
-    a.querySelector(".list-item-location").textContent = `${item.region}, ${item.country}`;
-    a.querySelector(".list-item-count").textContent = item.count.toLocaleString("de-DE");
-    container.appendChild(a);
+    card.querySelector(".list-item-name").textContent = item.name;
+    card.querySelector(".list-item-location").textContent = `${item.region}, ${item.country}`;
+    card.querySelector(".list-item-count").textContent = item.count.toLocaleString("de-DE");
+
+    card.querySelector(".list-item-name").addEventListener("click", (e) => e.stopPropagation());
+    card.querySelector(".list-item-share").addEventListener("click", (e) => {
+      e.stopPropagation();
+      shareCrag(item);
+    });
+    card.addEventListener("click", () => onSelectCrag(item));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelectCrag(item);
+      }
+    });
+
+    container.appendChild(card);
   }
 
   if (items.length === 0) {
@@ -302,10 +368,32 @@ async function main() {
   let currentMinIdx = startMin;
   let currentMaxIdx = startMax;
 
+  const listView = document.getElementById("list-view");
+
+  function setView(viewName) {
+    currentView = viewName;
+    for (const b of document.querySelectorAll(".view-toggle-btn")) {
+      b.classList.toggle("active", b.dataset.view === viewName);
+    }
+    listView.classList.toggle("hidden", viewName !== "list");
+    if (viewName === "list") refreshList();
+  }
+
+  // Clicking a list card (anywhere except the name link / share button)
+  // switches to the map, zoomed in on that crag.
+  function goToCragOnMap(item) {
+    if (!map) {
+      window.open(item.url, "_blank", "noopener");
+      return;
+    }
+    setView("map");
+    map.flyTo({ center: [item.lng, item.lat], zoom: 14 });
+  }
+
   function refreshList() {
     if (currentView !== "list") return;
     const bounds = map ? map.getBounds() : null;
-    renderList(computeListItems(crags, currentMinIdx, currentMaxIdx, bounds));
+    renderList(computeListItems(crags, currentMinIdx, currentMaxIdx, bounds), goToCragOnMap);
   }
 
   // Stats reflect the current map viewport (like the list), not all of
@@ -337,16 +425,8 @@ async function main() {
   });
 
   // --- View toggle: map <-> list of crags visible in the current viewport ---
-  const listView = document.getElementById("list-view");
   for (const btn of document.querySelectorAll(".view-toggle-btn")) {
-    btn.addEventListener("click", () => {
-      currentView = btn.dataset.view;
-      for (const b of document.querySelectorAll(".view-toggle-btn")) {
-        b.classList.toggle("active", b === btn);
-      }
-      listView.classList.toggle("hidden", currentView !== "list");
-      if (currentView === "list") refreshList();
-    });
+    btn.addEventListener("click", () => setView(btn.dataset.view));
   }
 
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN.indexOf("PASTE_YOUR") === 0) {
@@ -367,12 +447,25 @@ async function main() {
   }
   const initialStyleId = MAP_STYLES.some((s) => s.id === savedStyleId) ? savedStyleId : DEFAULT_STYLE_ID;
 
+  // Deep-link support: opening a shared #crag=<slug> URL (see shareCrag())
+  // lands directly on that crag instead of the default Europe-wide view.
+  let initialCenter = [10, 50];
+  let initialZoom = 3.5;
+  const hashMatch = /crag=([^&]+)/.exec(location.hash);
+  if (hashMatch) {
+    const target = findCragBySlug(crags, decodeURIComponent(hashMatch[1]));
+    if (target && target.lat != null && target.lng != null) {
+      initialCenter = [target.lng, target.lat];
+      initialZoom = 14;
+    }
+  }
+
   mapboxgl.accessToken = MAPBOX_TOKEN;
   map = new mapboxgl.Map({
     container: "map",
     style: `mapbox://styles/mapbox/${initialStyleId}`,
-    center: [10, 50],
-    zoom: 3.5,
+    center: initialCenter,
+    zoom: initialZoom,
   });
 
   // Mapbox emits an "error" event per failed request -- e.g. individual
