@@ -14,6 +14,37 @@ html, body {
   inset: 0;
 }
 
+#map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  transition: opacity 0.25s ease;
+}
+
+#map-loading.map-loading-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #4a90d9;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .style-switcher {
   position: relative;
 }

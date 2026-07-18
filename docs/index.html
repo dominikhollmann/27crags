@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>The Topo Bouldergebietsuche</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%97%3C/text%3E%3C/svg%3E">
 
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -16,6 +17,10 @@
 <body>
 
 <div id="map"></div>
+
+<div id="map-loading">
+  <div class="spinner"></div>
+</div>
 
 <div id="list-view" class="hidden">
   <div id="list-items"></div>

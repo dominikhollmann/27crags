@@ -194,16 +194,21 @@ function showReleaseNotesIfNeeded() {
   const latestVersion = unseen[unseen.length - 1].version;
   const markSeen = () => {
     modal.classList.add("hidden");
+    document.removeEventListener("keydown", onKeydown);
     try {
       localStorage.setItem(RELEASE_SEEN_STORAGE_KEY, String(latestVersion));
     } catch (err) {
       // ignore -- worst case the popup shows again next time
     }
   };
+  const onKeydown = (e) => {
+    if (e.key === "Escape") markSeen();
+  };
   document.getElementById("release-modal-close").addEventListener("click", markSeen, { once: true });
   modal.addEventListener("click", (e) => {
     if (e.target === modal) markSeen();
   }, { once: true });
+  document.addEventListener("keydown", onKeydown);
 }
 
 // localStorage can throw in locked-down/private-browsing contexts -- treat
@@ -650,8 +655,13 @@ async function main() {
     btn.addEventListener("click", () => setView(btn.dataset.view));
   }
 
+  function hideMapLoading() {
+    document.getElementById("map-loading").classList.add("map-loading-done");
+  }
+
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN.indexOf("PASTE_YOUR") === 0) {
     showError(t("errorNoToken"));
+    hideMapLoading();
     refreshData(startMin, startMax);
     return;
   }
@@ -691,6 +701,10 @@ async function main() {
     zoom: initialZoom,
   });
 
+  // "load" fires once for the initial style+tiles (unlike "style.load",
+  // which also fires on every later map.setStyle() from the style switcher).
+  map.on("load", hideMapLoading);
+
   // Mapbox emits an "error" event per failed request -- e.g. individual
   // tiles occasionally 403 (missing bathymetry coverage at some
   // coordinates) even though the map works fine overall. Only surface the
@@ -701,6 +715,7 @@ async function main() {
   map.on("error", (e) => {
     console.error("Mapbox error:", e.error);
     if (mapLoaded) return;
+    hideMapLoading();
     showError(t("errorMapbox", e.error && e.error.message ? e.error.message : String(e.error)));
   });
 
