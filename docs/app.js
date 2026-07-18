@@ -160,7 +160,7 @@ async function main() {
   mapboxgl.accessToken = MAPBOX_TOKEN;
   map = new mapboxgl.Map({
     container: "map",
-    style: "mapbox://styles/mapbox/outdoors-v12",
+    style: "mapbox://styles/mapbox/dark-v11",
     center: [10, 50],
     zoom: 3.5,
   });
