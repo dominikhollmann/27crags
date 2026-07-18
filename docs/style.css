@@ -251,6 +251,24 @@ html, body {
   margin: 0 6px 8px;
 }
 
+#share-view-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  border: 1px solid #d5dfe8;
+  background: #f4f8fc;
+  color: #1a5fb4;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#share-view-btn:hover {
+  background: #e8f0fc;
+}
+
 /* noUiSlider theming */
 .noUi-connect {
   background: #1a5fb4;

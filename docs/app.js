@@ -152,8 +152,43 @@ function buildShareUrl(slug) {
   return `${location.origin}${location.pathname}#crag=${encodeURIComponent(slug)}`;
 }
 
+// Shares the current map viewport (center/zoom) + grade filter, but
+// deliberately NOT the map style -- that's a personal display preference,
+// not something worth pinning for whoever opens the link.
+function buildViewShareUrl(lng, lat, zoom, minIdx, maxIdx) {
+  const view = `${lng.toFixed(4)},${lat.toFixed(4)},${zoom.toFixed(2)}`;
+  return `${location.origin}${location.pathname}#view=${view}&grade=${minIdx}-${maxIdx}`;
+}
+
 function findCragBySlug(crags, slug) {
   return crags.find((c) => cragSlug(c.url) === slug);
+}
+
+function parseHashParams() {
+  return new URLSearchParams(location.hash.replace(/^#/, ""));
+}
+
+// Returns [minIdx, maxIdx] from a "minIdx-maxIdx" hash param if present and
+// within [observedMin, observedMax], else null.
+function parseGradeHashParam(hashParams, observedMin, observedMax) {
+  const raw = hashParams.get("grade");
+  if (!raw) return null;
+  const match = /^(\d+)-(\d+)$/.exec(raw);
+  if (!match) return null;
+  const minIdx = parseInt(match[1], 10);
+  const maxIdx = parseInt(match[2], 10);
+  if (minIdx > maxIdx || minIdx < observedMin || maxIdx > observedMax) return null;
+  return [minIdx, maxIdx];
+}
+
+// Returns {center: [lng, lat], zoom} from a "lng,lat,zoom" hash param, else null.
+function parseViewHashParam(hashParams) {
+  const raw = hashParams.get("view");
+  if (!raw) return null;
+  const parts = raw.split(",").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  const [lng, lat, zoom] = parts;
+  return { center: [lng, lat], zoom };
 }
 
 // `bounds` is a mapboxgl.LngLatBounds, or null when there's no map (no
@@ -182,13 +217,7 @@ function computeListItems(crags, minIdx, maxIdx, bounds) {
   return items;
 }
 
-async function shareCrag(item) {
-  const shareUrl = buildShareUrl(item.slug);
-  const shareData = {
-    title: item.name,
-    text: `${item.name} (${item.region}, ${item.country}) auf The Topo Bouldergebietsuche`,
-    url: shareUrl,
-  };
+async function shareLink(shareData) {
   if (navigator.share) {
     try {
       await navigator.share(shareData);
@@ -198,11 +227,19 @@ async function shareCrag(item) {
     return;
   }
   try {
-    await navigator.clipboard.writeText(shareUrl);
-    alert("Link kopiert:\n" + shareUrl);
+    await navigator.clipboard.writeText(shareData.url);
+    alert("Link kopiert:\n" + shareData.url);
   } catch (err) {
-    prompt("Link zum Teilen:", shareUrl);
+    prompt("Link zum Teilen:", shareData.url);
   }
+}
+
+function shareCrag(item) {
+  return shareLink({
+    title: item.name,
+    text: `${item.name} (${item.region}, ${item.country}) auf The Topo Bouldergebietsuche`,
+    url: buildShareUrl(item.slug),
+  });
 }
 
 // `onSelectCrag(item)` is called when a card is clicked anywhere except the
@@ -326,15 +363,18 @@ async function main() {
 
   const [observedMin, observedMax] = computeObservedRange(crags);
   const statsEl = document.getElementById("stats");
+  const hashParams = parseHashParams();
 
-  // Restore a previously saved grade filter if it's still within the
-  // observed range (data may have changed since it was saved).
+  // Grade filter precedence: an explicit shared #grade=... link wins, then a
+  // previously saved filter (if still within the observed range), else full range.
   const savedRange = loadLocalStorageJSON(GRADE_RANGE_STORAGE_KEY);
+  const hashRange = parseGradeHashParam(hashParams, observedMin, observedMax);
   const [startMin, startMax] =
-    Array.isArray(savedRange) && savedRange.length === 2 &&
-    savedRange[0] >= observedMin && savedRange[1] <= observedMax && savedRange[0] <= savedRange[1]
+    hashRange ||
+    (Array.isArray(savedRange) && savedRange.length === 2 &&
+      savedRange[0] >= observedMin && savedRange[1] <= observedMax && savedRange[0] <= savedRange[1]
       ? savedRange
-      : [observedMin, observedMax];
+      : [observedMin, observedMax]);
 
   // --- Slider setup (independent of Mapbox so it still works if the map fails) ---
   const slider = document.getElementById("grade-slider");
@@ -448,15 +488,21 @@ async function main() {
   const initialStyleId = MAP_STYLES.some((s) => s.id === savedStyleId) ? savedStyleId : DEFAULT_STYLE_ID;
 
   // Deep-link support: opening a shared #crag=<slug> URL (see shareCrag())
-  // lands directly on that crag instead of the default Europe-wide view.
+  // lands directly on that crag; a shared #view=lng,lat,zoom (see
+  // shareCurrentView()) restores that viewport instead. #crag wins if both
+  // are somehow present.
   let initialCenter = [10, 50];
   let initialZoom = 3.5;
-  const hashMatch = /crag=([^&]+)/.exec(location.hash);
-  if (hashMatch) {
-    const target = findCragBySlug(crags, decodeURIComponent(hashMatch[1]));
-    if (target && target.lat != null && target.lng != null) {
-      initialCenter = [target.lng, target.lat];
-      initialZoom = 14;
+  const cragParam = hashParams.get("crag");
+  const target = cragParam ? findCragBySlug(crags, decodeURIComponent(cragParam)) : null;
+  if (target && target.lat != null && target.lng != null) {
+    initialCenter = [target.lng, target.lat];
+    initialZoom = 14;
+  } else {
+    const viewFromHash = parseViewHashParam(hashParams);
+    if (viewFromHash) {
+      initialCenter = viewFromHash.center;
+      initialZoom = viewFromHash.zoom;
     }
   }
 
@@ -491,6 +537,18 @@ async function main() {
   map.on("moveend", () => {
     refreshStats();
     refreshList();
+  });
+
+  // Share the current viewport + grade filter (deliberately not the map
+  // style -- that's a personal preference, not part of "this view").
+  document.getElementById("share-view-btn").addEventListener("click", () => {
+    const center = map.getCenter();
+    const shareUrl = buildViewShareUrl(center.lng, center.lat, map.getZoom(), currentMinIdx, currentMaxIdx);
+    shareLink({
+      title: "The Topo Bouldergebietsuche",
+      text: "Boulder-Gebiete auf The Topo Bouldergebietsuche",
+      url: shareUrl,
+    });
   });
 
   // Same radius scale for clusters (by "sum") and individual crags (by
