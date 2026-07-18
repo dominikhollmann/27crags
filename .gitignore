@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 scrape_log.txt
 *.json.tmp
+.claude/scheduled_tasks.lock

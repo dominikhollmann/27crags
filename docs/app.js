@@ -1,5 +1,5 @@
 // Trage hier deinen eigenen Mapbox Public Access Token ein (siehe README.md).
-const MAPBOX_TOKEN = "PASTE_YOUR_MAPBOX_TOKEN_HERE";
+const MAPBOX_TOKEN = "pk.eyJ1IjoiZG9taW5pay1ob2xsbWFubjEyMyIsImEiOiJjbXJxaXpycWEwMWNqMnlwbXJqdmY1MDhpIn0.GvYBbWqbDDTxpFCpZvlOpQ";
 
 // Muss exakt der Sequenz aus scrape_thetopo.py (FONT_SEQUENCE) entsprechen.
 // "ungraded"-Boulder sind bewusst nicht Teil dieser Sequenz -- sie werden vom
