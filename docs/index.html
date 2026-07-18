@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Boulder-Gebiete Europa</title>
+
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+
+<link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <button id="panel-toggle" aria-label="Filter ein-/ausklappen">
+    <span id="panel-title">Boulder-Gebiete Europa</span>
+    <span id="panel-arrow">&#9650;</span>
+  </button>
+
+  <div id="panel-body">
+    <div id="stats">lade Daten&hellip;</div>
+
+    <label class="panel-label">Schwierigkeitsgrad (Font)</label>
+    <div id="grade-range-labels">
+      <span id="grade-min-label"></span>
+      <span id="grade-max-label"></span>
+    </div>
+    <div id="grade-slider"></div>
+  </div>
+</div>
+
+<div id="loading-error" class="hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

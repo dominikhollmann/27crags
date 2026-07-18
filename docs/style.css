@@ -1,0 +1,135 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+#panel {
+  position: absolute;
+  z-index: 10;
+  top: 12px;
+  left: 12px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+#panel-toggle {
+  display: none;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+#panel-arrow {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+#panel-body {
+  padding: 14px 16px 18px;
+}
+
+#stats {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.panel-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+#grade-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a5fb4;
+  margin-bottom: 14px;
+}
+
+#grade-slider {
+  margin: 0 6px 8px;
+}
+
+/* noUiSlider theming */
+.noUi-connect {
+  background: #1a5fb4;
+}
+
+.noUi-handle {
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+#loading-error {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff3f3;
+  border: 1px solid #e0a0a0;
+  color: #7a1f1f;
+  padding: 16px 20px;
+  border-radius: 8px;
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Mobile layout: bottom sheet, collapsible */
+@media (max-width: 700px) {
+  #panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+  }
+
+  #panel-toggle {
+    display: flex;
+  }
+
+  #panel.collapsed #panel-body {
+    display: none;
+  }
+
+  #panel.collapsed #panel-arrow {
+    transform: rotate(180deg);
+  }
+}
