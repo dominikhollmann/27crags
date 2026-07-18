@@ -122,6 +122,23 @@ function buildGeoJSON(crags, minIdx, maxIdx) {
   };
 }
 
+// Same idea as buildGeoJSON's totals, but restricted to crags within
+// `bounds` -- used for the stats line so it reflects the current map
+// viewport instead of all of Europe. `bounds` null (no map) means "all".
+function computeBoundedStats(crags, minIdx, maxIdx, bounds) {
+  let matchingCragCount = 0;
+  let totalBoulders = 0;
+  for (const crag of crags) {
+    if (crag.lat == null || crag.lng == null) continue;
+    if (bounds && !bounds.contains([crag.lng, crag.lat])) continue;
+    const count = countInRange(crag, minIdx, maxIdx);
+    if (count <= 0) continue;
+    matchingCragCount++;
+    totalBoulders += count;
+  }
+  return { matchingCragCount, totalBoulders };
+}
+
 const LIST_MAX_ITEMS = 300;
 
 // `bounds` is a mapboxgl.LngLatBounds, or null when there's no map (no
@@ -291,15 +308,23 @@ async function main() {
     renderList(computeListItems(crags, currentMinIdx, currentMaxIdx, bounds));
   }
 
+  // Stats reflect the current map viewport (like the list), not all of
+  // Europe -- so panning/zooming updates the numbers, not just the slider.
+  function refreshStats() {
+    const bounds = map ? map.getBounds() : null;
+    const { matchingCragCount, totalBoulders } = computeBoundedStats(crags, currentMinIdx, currentMaxIdx, bounds);
+    updateStats(matchingCragCount, totalBoulders);
+  }
+
   function refreshData(minIdx, maxIdx) {
     currentMinIdx = minIdx;
     currentMaxIdx = maxIdx;
-    const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, minIdx, maxIdx);
+    const { geojson } = buildGeoJSON(crags, minIdx, maxIdx);
     if (map) {
       const source = map.getSource("crags");
       if (source) source.setData(geojson);
     }
-    updateStats(matchingCragCount, totalBoulders);
+    refreshStats();
     refreshList();
   }
 
@@ -369,6 +394,12 @@ async function main() {
   map.addControl(new mapboxgl.NavigationControl(), "top-right");
   map.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
+  // Keep stats/list in sync with the viewport, not just the grade filter.
+  map.on("moveend", () => {
+    refreshStats();
+    refreshList();
+  });
+
   // Same radius scale for clusters (by "sum") and individual crags (by
   // "count") so marker size is directly comparable across both -- a lone
   // crag with 500 boulders should look as big as a cluster summing to 500.
@@ -383,7 +414,7 @@ async function main() {
   // (Re-)adds the crags source/layers. Needed on initial load AND after every
   // map.setStyle() call, since switching style wipes all custom sources/layers.
   function addCragLayers() {
-    const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, currentMinIdx, currentMaxIdx);
+    const { geojson } = buildGeoJSON(crags, currentMinIdx, currentMaxIdx);
 
     map.addSource("crags", {
       type: "geojson",
@@ -454,7 +485,7 @@ async function main() {
       paint: { "text-color": "#ffffff" },
     });
 
-    updateStats(matchingCragCount, totalBoulders);
+    refreshStats();
   }
 
   // Interaction handlers are registered once -- they reference layers by ID
