@@ -272,9 +272,37 @@ async function main() {
       window.open(url, "_blank", "noopener");
     });
 
+    // Hover tooltips: crag name on individual markers, crag count on clusters.
+    const hoverPopup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 14,
+    });
+
+    map.on("mouseenter", "unclustered-point", (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      const feature = e.features[0];
+      hoverPopup
+        .setLngLat(feature.geometry.coordinates)
+        .setText(feature.properties.name)
+        .addTo(map);
+    });
+
+    map.on("mouseenter", "clusters", (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      const feature = e.features[0];
+      const n = feature.properties.point_count;
+      hoverPopup
+        .setLngLat(feature.geometry.coordinates)
+        .setText(`${n.toLocaleString("de-DE")} Gebiete`)
+        .addTo(map);
+    });
+
     for (const layerId of ["clusters", "unclustered-point"]) {
-      map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+        hoverPopup.remove();
+      });
     }
   });
 }
