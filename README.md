@@ -1,4 +1,4 @@
-# Boulder-Gebiete Europa
+# The Topo Bouldergebietsuche
 
 Scraper für Boulder-Grad-Verteilungen von thetopo.com + eine kleine interaktive Karte,
 die die Ergebnisse anzeigt.
@@ -12,7 +12,7 @@ python scrape_thetopo.py
 
 Läuft ca. 30-45 Minuten (bewusst langsam, 3-6s Pause zwischen Requests), ist
 resumable -- ein Abbruch verliert keine bereits gecrawlten Regionen. Ergebnis:
-`data/boulder_areas_europe.json`.
+`data/boulder_areas.json`.
 
 ## 2. Frontend-Daten bauen
 
@@ -58,7 +58,7 @@ Dann http://localhost:8000 öffnen.
 ```
 git init
 git add .
-git commit -m "Boulder-Gebiete Europa: Scraper + Karte"
+git commit -m "The Topo Bouldergebietsuche: Scraper + Karte"
 gh repo create <repo-name> --public --source=. --push
 gh api -X POST repos/<username>/<repo-name>/pages -f "source[branch]=main" -f "source[path]=/docs"
 ```
@@ -70,7 +70,7 @@ dem Link).
 
 ## Datenformat
 
-`data/boulder_areas_europe.json` und `docs/data/crags.json` enthalten pro
+`data/boulder_areas.json` und `docs/data/crags.json` enthalten pro
 Boulder-Gebiet: `name`, `url` (Link zum Gebiet auf thetopo.com), `region`,
 `region_url`, `country`, Koordinaten und `grades` (Anzahl Boulder je
 Font-Schwierigkeitsgrad). Nur Gebiete mit mindestens einem Boulder sind

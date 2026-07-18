@@ -1,4 +1,4 @@
-"""Scrape Font-grade distributions for European bouldering areas from thetopo.com.
+"""Scrape Font-grade distributions for bouldering areas worldwide from thetopo.com.
 
 Only boulder data is collected: crags with boulder_count == 0 are skipped, and
 only the "Boulder" bucket of each crag's route_counts histogram is decoded.
@@ -7,7 +7,7 @@ Sport/Trad/DWS routes are never included in the output.
 Data source: each region page (/areas/{param_id}) embeds a "Mapbox" React
 component whose `crags` field lists every crag in that region (id, name,
 param_id, lat/lng, boulder_count, route_counts, ...). This means we only need
-one request per region (~577 for Europe) instead of one per crag (~18k).
+one request per region (~691 worldwide) instead of one per crag (~18k+).
 
 The crag numeric-code grade histogram encoding was reverse engineered and
 verified against a real crag's route list: code 0 = ungraded, and
@@ -35,7 +35,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_URL = "https://thetopo.com"
-OUTPUT_PATH = Path(__file__).parent / "data" / "boulder_areas_europe.json"
+OUTPUT_PATH = Path(__file__).parent / "data" / "boulder_areas.json"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -45,18 +45,6 @@ MIN_DELAY_SECONDS = 3.0
 MAX_DELAY_SECONDS = 6.0
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 3
-
-EUROPEAN_COUNTRIES = {
-    "Albania", "Andorra", "Austria", "Belarus", "Belgium",
-    "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
-    "Denmark", "Estonia", "Faroe Islands", "Finland", "France", "Germany",
-    "Gibraltar", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Kosovo",
-    "Latvia", "Lithuania", "Luxembourg", "Malta", "Moldova, Republic of",
-    "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway",
-    "Poland", "Portugal", "Romania", "Russian Federation", "San Marino",
-    "Serbia", "Slovakia", "Slovenia", "Spain", "Svalbard and Jan Mayen",
-    "Sweden", "Switzerland", "Ukraine", "United Kingdom",
-}
 
 # code 0 is a reserved "ungraded" sentinel, handled separately below.
 FONT_SEQUENCE = [
@@ -127,15 +115,13 @@ def decode_grade(code_str):
     return f"unknown_code_{code}"
 
 
-def get_european_areas(session):
+def get_all_areas(session):
     html = fetch(session, BASE_URL + "/")
     match = NAV_SCRIPT_RE.search(html)
     if not match:
         raise RuntimeError("Could not find Nav component on homepage")
     nav_data = json.loads(match.group(1))
-    areas = nav_data["areas"]
-    european = [a for a in areas if a["country"] in EUROPEAN_COUNTRIES]
-    return european
+    return nav_data["areas"]
 
 
 def extract_area_crags(html):
@@ -198,8 +184,8 @@ def main():
     already_done = set(output["scraped_area_param_ids"])
 
     print("Fetching global area list...")
-    areas = get_european_areas(session)
-    print(f"Found {len(areas)} European areas total.")
+    areas = get_all_areas(session)
+    print(f"Found {len(areas)} areas worldwide.")
 
     if args.limit is not None:
         areas = areas[: args.limit]

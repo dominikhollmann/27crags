@@ -1,6 +1,6 @@
 """Build the compact JSON dataset consumed by the docs/ map frontend.
 
-Reads data/boulder_areas_europe.json (produced by scrape_thetopo.py) and
+Reads data/boulder_areas.json (produced by scrape_thetopo.py) and
 writes docs/data/crags.json: same records, minus the redundant `param_id`
 field (already encoded in `url`), lat/lng rounded to 5 decimals (~1m
 precision, plenty for this map), and no indentation to keep the payload
@@ -10,7 +10,7 @@ small.
 import json
 from pathlib import Path
 
-SOURCE_PATH = Path(__file__).parent / "data" / "boulder_areas_europe.json"
+SOURCE_PATH = Path(__file__).parent / "data" / "boulder_areas.json"
 DEST_PATH = Path(__file__).parent / "docs" / "data" / "crags.json"
 
 
