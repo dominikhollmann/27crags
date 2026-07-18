@@ -48,6 +48,16 @@ function computeObservedRange(crags) {
   return [min, max];
 }
 
+function countInRange(crag, minIdx, maxIdx) {
+  let count = 0;
+  for (const [label, n] of Object.entries(crag.grades)) {
+    const idx = gradeIndex(label);
+    if (idx < 0) continue;
+    if (idx >= minIdx && idx <= maxIdx) count += n;
+  }
+  return count;
+}
+
 function buildGeoJSON(crags, minIdx, maxIdx) {
   const features = [];
   let totalBoulders = 0;
@@ -55,12 +65,7 @@ function buildGeoJSON(crags, minIdx, maxIdx) {
   for (const crag of crags) {
     if (crag.lat == null || crag.lng == null) continue;
 
-    let count = 0;
-    for (const [label, n] of Object.entries(crag.grades)) {
-      const idx = gradeIndex(label);
-      if (idx < 0) continue;
-      if (idx >= minIdx && idx <= maxIdx) count += n;
-    }
+    const count = countInRange(crag, minIdx, maxIdx);
     if (count <= 0) continue;
 
     totalBoulders += count;
@@ -82,6 +87,59 @@ function buildGeoJSON(crags, minIdx, maxIdx) {
     matchingCragCount: features.length,
     totalBoulders,
   };
+}
+
+const LIST_MAX_ITEMS = 300;
+
+// `bounds` is a mapboxgl.LngLatBounds, or null when there's no map (no
+// token) -- in that case every crag counts as "visible".
+function computeListItems(crags, minIdx, maxIdx, bounds) {
+  const items = [];
+  for (const crag of crags) {
+    if (crag.lat == null || crag.lng == null) continue;
+    if (bounds && !bounds.contains([crag.lng, crag.lat])) continue;
+
+    const count = countInRange(crag, minIdx, maxIdx);
+    if (count <= 0) continue;
+
+    items.push({ name: crag.name, region: crag.region, country: crag.country, url: crag.url, count });
+  }
+  items.sort((a, b) => b.count - a.count);
+  return items;
+}
+
+function renderList(items) {
+  const container = document.getElementById("list-items");
+  container.innerHTML = "";
+
+  const shown = items.slice(0, LIST_MAX_ITEMS);
+  for (const item of shown) {
+    const a = document.createElement("a");
+    a.className = "list-item";
+    a.href = item.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.innerHTML =
+      `<div><div class="list-item-name"></div><div class="list-item-location"></div></div>` +
+      `<div class="list-item-count"></div>`;
+    a.querySelector(".list-item-name").textContent = item.name;
+    a.querySelector(".list-item-location").textContent = `${item.region}, ${item.country}`;
+    a.querySelector(".list-item-count").textContent = item.count.toLocaleString("de-DE");
+    container.appendChild(a);
+  }
+
+  if (items.length === 0) {
+    const note = document.createElement("div");
+    note.className = "list-note";
+    note.textContent = "Keine Gebiete im aktuellen Kartenausschnitt/Grad-Filter.";
+    container.appendChild(note);
+  } else if (items.length > LIST_MAX_ITEMS) {
+    const note = document.createElement("div");
+    note.className = "list-note";
+    note.textContent =
+      `+${(items.length - LIST_MAX_ITEMS).toLocaleString("de-DE")} weitere Gebiete im sichtbaren Bereich -- weiter reinzoomen, um alle zu sehen.`;
+    container.appendChild(note);
+  }
 }
 
 async function main() {
@@ -130,14 +188,26 @@ async function main() {
   // `map` is assigned below only if a Mapbox token is present; refreshData
   // guards against it being null so the slider/stats stay usable either way.
   let map = null;
+  let currentView = "map";
+  let currentMinIdx = observedMin;
+  let currentMaxIdx = observedMax;
+
+  function refreshList() {
+    if (currentView !== "list") return;
+    const bounds = map ? map.getBounds() : null;
+    renderList(computeListItems(crags, currentMinIdx, currentMaxIdx, bounds));
+  }
 
   function refreshData(minIdx, maxIdx) {
+    currentMinIdx = minIdx;
+    currentMaxIdx = maxIdx;
     const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, minIdx, maxIdx);
     if (map) {
       const source = map.getSource("crags");
       if (source) source.setData(geojson);
     }
     updateStats(matchingCragCount, totalBoulders);
+    refreshList();
   }
 
   slider.noUiSlider.on("update", (values) => {
@@ -146,6 +216,19 @@ async function main() {
     setRangeLabels(minIdx, maxIdx);
     if (!map || map.isStyleLoaded()) refreshData(minIdx, maxIdx);
   });
+
+  // --- View toggle: map <-> list of crags visible in the current viewport ---
+  const listView = document.getElementById("list-view");
+  for (const btn of document.querySelectorAll(".view-toggle-btn")) {
+    btn.addEventListener("click", () => {
+      currentView = btn.dataset.view;
+      for (const b of document.querySelectorAll(".view-toggle-btn")) {
+        b.classList.toggle("active", b === btn);
+      }
+      listView.classList.toggle("hidden", currentView !== "list");
+      if (currentView === "list") refreshList();
+    });
+  }
 
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN.indexOf("PASTE_YOUR") === 0) {
     showError(

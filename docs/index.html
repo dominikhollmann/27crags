@@ -17,6 +17,10 @@
 
 <div id="map"></div>
 
+<div id="list-view" class="hidden">
+  <div id="list-items"></div>
+</div>
+
 <div id="panel">
   <button id="panel-toggle" aria-label="Filter ein-/ausklappen">
     <span id="panel-title">Boulder-Gebiete Europa</span>
@@ -25,6 +29,11 @@
 
   <div id="panel-body">
     <div id="stats">lade Daten&hellip;</div>
+
+    <div id="view-toggle" role="tablist">
+      <button type="button" class="view-toggle-btn active" data-view="map">Karte</button>
+      <button type="button" class="view-toggle-btn" data-view="list">Liste</button>
+    </div>
 
     <label class="panel-label">Schwierigkeitsgrad (Font)</label>
     <div id="grade-range-labels">
