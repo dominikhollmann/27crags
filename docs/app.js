@@ -143,6 +143,18 @@ const RELEASE_NOTES = [
       ],
     },
   },
+  {
+    version: 2,
+    date: "2026-07-18",
+    changes: {
+      de: [
+        "Die Seite gibt es jetzt auf Deutsch und Englisch, automatisch passend zur Sprache deines Browsers.",
+      ],
+      en: [
+        "The site is now available in German and English, automatically matching your browser's language.",
+      ],
+    },
+  },
 ];
 const RELEASE_SEEN_STORAGE_KEY = "seenReleaseVersion";
 
