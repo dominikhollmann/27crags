@@ -14,6 +14,56 @@ html, body {
   inset: 0;
 }
 
+.style-switcher {
+  position: relative;
+}
+
+.style-switcher-button {
+  width: 29px;
+  height: 29px;
+  border: none;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  line-height: 29px;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+}
+
+.style-switcher-menu {
+  position: absolute;
+  top: 0;
+  right: 33px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  min-width: 130px;
+}
+
+.style-switcher-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+}
+
+.style-switcher-item:hover {
+  background: #f0f6ff;
+}
+
+.style-switcher-item.active {
+  font-weight: 700;
+  color: #1a5fb4;
+}
+
 #panel {
   position: absolute;
   z-index: 10;

@@ -12,6 +12,19 @@ const FONT_SEQUENCE = [
   "9A", "9A+", "9B", "9B+", "9C",
 ];
 
+// Standard Mapbox gallery styles (https://www.mapbox.com/gallery), offered
+// via a custom control next to the zoom buttons since dark-v11 alone is
+// pretty but low-contrast for some regions/zooms.
+const MAP_STYLES = [
+  { id: "dark-v11", label: "Dark" },
+  { id: "light-v11", label: "Light" },
+  { id: "streets-v12", label: "Streets" },
+  { id: "outdoors-v12", label: "Outdoors" },
+  { id: "satellite-streets-v12", label: "Satellite" },
+];
+const DEFAULT_STYLE_ID = "dark-v11";
+const STYLE_STORAGE_KEY = "mapStyleId";
+
 function showError(message) {
   const el = document.getElementById("loading-error");
   el.textContent = message;
@@ -142,6 +155,57 @@ function renderList(items) {
   }
 }
 
+// Custom Mapbox GL control (dropdown button) for picking one of MAP_STYLES,
+// placed next to the zoom/fullscreen controls via map.addControl(..., "top-right").
+class StyleSwitcherControl {
+  constructor(activeStyleId, onSelect) {
+    this._activeStyleId = activeStyleId;
+    this._onSelect = onSelect;
+  }
+
+  onAdd() {
+    const container = document.createElement("div");
+    container.className = "mapboxgl-ctrl style-switcher";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.title = "Kartenstil wählen";
+    button.className = "style-switcher-button";
+    button.textContent = "▤"; // simple layers-like glyph, no external icon needed
+
+    const menu = document.createElement("div");
+    menu.className = "style-switcher-menu hidden";
+    for (const style of MAP_STYLES) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "style-switcher-item" + (style.id === this._activeStyleId ? " active" : "");
+      item.textContent = style.label;
+      item.addEventListener("click", () => {
+        for (const el of menu.querySelectorAll(".style-switcher-item")) el.classList.remove("active");
+        item.classList.add("active");
+        menu.classList.add("hidden");
+        this._onSelect(style.id);
+      });
+      menu.appendChild(item);
+    }
+
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menu.classList.toggle("hidden");
+    });
+    document.addEventListener("click", () => menu.classList.add("hidden"));
+
+    container.appendChild(button);
+    container.appendChild(menu);
+    this._container = container;
+    return container;
+  }
+
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+  }
+}
+
 async function main() {
   // Panel toggle (mobile bottom sheet) works regardless of map/token status.
   const panel = document.getElementById("panel");
@@ -240,10 +304,18 @@ async function main() {
     return;
   }
 
+  let savedStyleId = null;
+  try {
+    savedStyleId = localStorage.getItem(STYLE_STORAGE_KEY);
+  } catch (err) {
+    // localStorage can throw in some locked-down/private-browsing contexts -- ignore, just use the default.
+  }
+  const initialStyleId = MAP_STYLES.some((s) => s.id === savedStyleId) ? savedStyleId : DEFAULT_STYLE_ID;
+
   mapboxgl.accessToken = MAPBOX_TOKEN;
   map = new mapboxgl.Map({
     container: "map",
-    style: "mapbox://styles/mapbox/dark-v11",
+    style: `mapbox://styles/mapbox/${initialStyleId}`,
     center: [10, 50],
     zoom: 3.5,
   });
@@ -252,8 +324,8 @@ async function main() {
   // tiles occasionally 403 (missing bathymetry coverage at some
   // coordinates) even though the map works fine overall. Only surface the
   // blocking banner if the map never managed to load at all (bad/misconfigured
-  // token); once "load" has fired once, treat further errors as non-fatal
-  // noise and just log them.
+  // token); once the style has loaded once, treat further errors as
+  // non-fatal noise and just log them.
   let mapLoaded = false;
   map.on("error", (e) => {
     console.error("Mapbox error:", e.error);
@@ -267,10 +339,21 @@ async function main() {
   map.addControl(new mapboxgl.NavigationControl(), "top-right");
   map.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
-  // --- Map layers ---
-  map.on("load", () => {
-    mapLoaded = true;
-    const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, observedMin, observedMax);
+  // Same radius scale for clusters (by "sum") and individual crags (by
+  // "count") so marker size is directly comparable across both -- a lone
+  // crag with 500 boulders should look as big as a cluster summing to 500.
+  const radiusSteps = (property) => [
+    "step", ["get", property],
+    16, 100,
+    20, 500,
+    25, 2000,
+    32,
+  ];
+
+  // (Re-)adds the crags source/layers. Needed on initial load AND after every
+  // map.setStyle() call, since switching style wipes all custom sources/layers.
+  function addCragLayers() {
+    const { geojson, matchingCragCount, totalBoulders } = buildGeoJSON(crags, currentMinIdx, currentMaxIdx);
 
     map.addSource("crags", {
       type: "geojson",
@@ -282,17 +365,6 @@ async function main() {
         sum: ["+", ["get", "count"]],
       },
     });
-
-    // Same radius scale for clusters (by "sum") and individual crags (by
-    // "count") so marker size is directly comparable across both -- a lone
-    // crag with 500 boulders should look as big as a cluster summing to 500.
-    const radiusSteps = (property) => [
-      "step", ["get", property],
-      16, 100,
-      20, 500,
-      25, 2000,
-      32,
-    ];
 
     map.addLayer({
       id: "clusters",
@@ -353,56 +425,73 @@ async function main() {
     });
 
     updateStats(matchingCragCount, totalBoulders);
+  }
 
-    // Click a cluster -> zoom in.
-    map.on("click", "clusters", (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: ["clusters"] });
-      const clusterId = features[0].properties.cluster_id;
-      map.getSource("crags").getClusterExpansionZoom(clusterId, (err, zoom) => {
-        if (err) return;
-        map.easeTo({ center: features[0].geometry.coordinates, zoom });
-      });
+  // Interaction handlers are registered once -- they reference layers by ID
+  // and keep working across style switches since addCragLayers() re-creates
+  // the same layer IDs every time.
+  map.on("click", "clusters", (e) => {
+    const features = map.queryRenderedFeatures(e.point, { layers: ["clusters"] });
+    const clusterId = features[0].properties.cluster_id;
+    map.getSource("crags").getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      map.easeTo({ center: features[0].geometry.coordinates, zoom });
     });
-
-    // Click an individual crag marker -> open it on thetopo.com in a new tab.
-    map.on("click", "unclustered-point", (e) => {
-      const url = e.features[0].properties.url;
-      window.open(url, "_blank", "noopener");
-    });
-
-    // Hover tooltips: crag name on individual markers, crag count on clusters.
-    const hoverPopup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      offset: 14,
-    });
-
-    map.on("mouseenter", "unclustered-point", (e) => {
-      map.getCanvas().style.cursor = "pointer";
-      const feature = e.features[0];
-      hoverPopup
-        .setLngLat(feature.geometry.coordinates)
-        .setText(feature.properties.name)
-        .addTo(map);
-    });
-
-    map.on("mouseenter", "clusters", (e) => {
-      map.getCanvas().style.cursor = "pointer";
-      const feature = e.features[0];
-      const n = feature.properties.point_count;
-      hoverPopup
-        .setLngLat(feature.geometry.coordinates)
-        .setText(`${n.toLocaleString("de-DE")} Gebiete`)
-        .addTo(map);
-    });
-
-    for (const layerId of ["clusters", "unclustered-point"]) {
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-        hoverPopup.remove();
-      });
-    }
   });
+
+  // Click an individual crag marker -> open it on thetopo.com in a new tab.
+  map.on("click", "unclustered-point", (e) => {
+    const url = e.features[0].properties.url;
+    window.open(url, "_blank", "noopener");
+  });
+
+  // Hover tooltips: crag name on individual markers, crag count on clusters.
+  const hoverPopup = new mapboxgl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: 14,
+  });
+
+  map.on("mouseenter", "unclustered-point", (e) => {
+    map.getCanvas().style.cursor = "pointer";
+    const feature = e.features[0];
+    hoverPopup
+      .setLngLat(feature.geometry.coordinates)
+      .setText(feature.properties.name)
+      .addTo(map);
+  });
+
+  map.on("mouseenter", "clusters", (e) => {
+    map.getCanvas().style.cursor = "pointer";
+    const feature = e.features[0];
+    const n = feature.properties.point_count;
+    hoverPopup
+      .setLngLat(feature.geometry.coordinates)
+      .setText(`${n.toLocaleString("de-DE")} Gebiete`)
+      .addTo(map);
+  });
+
+  for (const layerId of ["clusters", "unclustered-point"]) {
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+      hoverPopup.remove();
+    });
+  }
+
+  // "style.load" fires for the initial style AND after every map.setStyle().
+  map.on("style.load", () => {
+    mapLoaded = true;
+    addCragLayers();
+  });
+
+  map.addControl(new StyleSwitcherControl(initialStyleId, (styleId) => {
+    try {
+      localStorage.setItem(STYLE_STORAGE_KEY, styleId);
+    } catch (err) {
+      // ignore -- persistence is a nice-to-have, not required
+    }
+    map.setStyle(`mapbox://styles/mapbox/${styleId}`);
+  }), "top-right");
 }
 
 main();
